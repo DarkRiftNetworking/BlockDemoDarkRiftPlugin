@@ -29,8 +29,12 @@ namespace BlockDemoDarkRiftPlugin
         ///     The version number of the plugin in SemVer form.
         /// </summary>
         public override Version Version => new Version(1, 0, 0);
-
-        public override bool ThreadSafe => false;
+        
+        /// <summary>
+        ///     Indicates that this plugin is thread safe and DarkRift can invoke events from 
+        ///     multiple threads simultaniously.
+        /// </summary>
+        public override bool ThreadSafe => true;
 
         Dictionary<Client, Player> players = new Dictionary<Client, Player>();
 
@@ -48,18 +52,25 @@ namespace BlockDemoDarkRiftPlugin
         void ClientManager_ClientConnected(object sender, ClientConnectedEventArgs e)
         {
             //Spawn our new player on all other players
-            Player player = new Player(0, 0, 0, e.Client.GlobalID);
+            Player player = new Player(new Vec3(0, 0, 0), new Vec3(0, 0, 0), e.Client.GlobalID);
             foreach (Client client in ClientManager.GetAllClients())
             {
                 if (client != e.Client)
                     client.SendMessage(new TagSubjectMessage(SPAWN_TAG, 0, player), SendMode.Reliable);
             }
 
-            players.Add(e.Client, player);
+            lock (players)
+                players.Add(e.Client, player);
 
             //Spawn all other players on our new player
             foreach (Client client in ClientManager.GetAllClients())
-                e.Client.SendMessage(new TagSubjectMessage(SPAWN_TAG, 0, players[client]), SendMode.Reliable);
+            {
+                Player p;
+                lock (players)
+                    p = players[client];
+
+                e.Client.SendMessage(new TagSubjectMessage(SPAWN_TAG, 0, p), SendMode.Reliable);
+            }
 
             //Subscribe to when this client sends PLAYER messages
             e.Client.Subscribe(MOVEMENT_TAG, Client_PlayerEvent);
@@ -72,32 +83,78 @@ namespace BlockDemoDarkRiftPlugin
         /// <param name="e">The event arguments.</param>
         void Client_PlayerEvent(object sender, MessageReceivedEventArgs e)
         {
+            Client client = (Client)sender;
+
+            //Get the player in question
+            Player player;
+            lock (players)
+                player = players[client];
+            
+            //Deserialize the new position
+            Vec3 newPosition = e.Message.Deserialize<Vec3>();
+            Vec3 newRotation = e.Message.Deserialize<Vec3>();
+
+            lock (player)
+            {
+                //Update the player
+                player.Position = newPosition;
+                player.Rotation = newRotation;
+
+                //Serialize the whole player to the message so that we also include the ID
+                e.Message.Serialize(player);
+            }
+
             //Send to everyone else
-            IEnumerable<Client> others = ClientManager.GetAllClients().Intersect(new Client[] { (Client)sender });
+            IEnumerable<Client> others = ClientManager.GetAllClients().Except(new Client[] { client });
             e.DistributeTo.UnionWith(others);
         }
 
         private class Player : IDarkRiftSerializable
         {
-            float X { get; set; }
-            float Y { get; set; }
-            float Z { get; set; }
-            uint ID { get; set; }
+            public Vec3 Position { get; set; }
+            public Vec3 Rotation { get; set; }
+            public uint ID { get; set; }
 
-            public Player(float x, float y, float z, uint id)
+            public Player(Vec3 position, Vec3 rotation, uint ID)
             {
-                this.X = x;
-                this.Y = y;
-                this.Z = z;
-                this.ID = id;
+                this.Position = position;
+                this.Rotation = rotation;
+                this.ID = ID;
             }
 
             public Player(DeserializeEvent e)
             {
+                this.Position = e.Reader.ReadSerializable<Vec3>();
+                this.Rotation = e.Reader.ReadSerializable<Vec3>();
+                this.ID = e.Reader.ReadUInt32();
+            }
+
+            public void Serialize(SerializeEvent e)
+            {
+                e.Writer.Write(Position);
+                e.Writer.Write(Rotation);
+                e.Writer.Write(ID);
+            }
+        }
+
+        private class Vec3 : IDarkRiftSerializable
+        {
+            public float X { get; set; }
+            public float Y { get; set; }
+            public float Z { get; set; }
+
+            public Vec3(float x, float y, float z)
+            {
+                this.X = x;
+                this.Y = y;
+                this.Z = z;
+            }
+
+            public Vec3(DeserializeEvent e)
+            {
                 this.X = e.Reader.ReadSingle();
                 this.Y = e.Reader.ReadSingle();
                 this.Z = e.Reader.ReadSingle();
-                this.ID = e.Reader.ReadUInt32();
             }
 
             public void Serialize(SerializeEvent e)
@@ -105,7 +162,6 @@ namespace BlockDemoDarkRiftPlugin
                 e.Writer.Write(X);
                 e.Writer.Write(Y);
                 e.Writer.Write(Z);
-                e.Writer.Write(ID);
             }
         }
     }
