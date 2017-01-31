@@ -21,6 +21,16 @@ namespace BlockDemoDarkRiftPlugin
         const int MOVEMENT_TAG = 1;
 
         /// <summary>
+        ///     The subject for spawning a new player.
+        /// </summary>
+        const ushort SPAWN_SUBJECT = 0;
+
+        /// <summary>
+        ///     The subject for despawning a player.
+        /// </summary>
+        const ushort DESPAWN_SUBJECT = 1;
+
+        /// <summary>
         ///     The name of our plugin.
         /// </summary>
         public override string Name => nameof(BlockDemoPlayerManager);
@@ -42,6 +52,9 @@ namespace BlockDemoDarkRiftPlugin
         {
             //Subscribe for notification when a new client connects
             ClientManager.ClientConnected += ClientManager_ClientConnected;
+
+            //Subscribe for notifications when a new client disconnects
+            ClientManager.ClientDisconnected += ClientManager_ClientDisconnected;
         }
 
         /// <summary>
@@ -69,11 +82,29 @@ namespace BlockDemoDarkRiftPlugin
                 lock (players)
                     p = players[client];
 
-                e.Client.SendMessage(new TagSubjectMessage(SPAWN_TAG, 0, p), SendMode.Reliable);
+                e.Client.SendMessage(new TagSubjectMessage(SPAWN_TAG, SPAWN_SUBJECT, p), SendMode.Reliable);
             }
 
             //Subscribe to when this client sends PLAYER messages
             e.Client.Subscribe(MOVEMENT_TAG, Client_PlayerEvent);
+        }
+
+        /// <summary>
+        ///     Invoked when a new client connects.
+        /// </summary>
+        /// <param name="sender">The client manager.</param>
+        /// <param name="e">The event arguments.</param>
+        private void ClientManager_ClientDisconnected(object sender, ClientDisconnectedEventArgs e)
+        {
+            players.Remove(e.Client);
+
+            DarkRiftWriter writer = new DarkRiftWriter();
+            writer.Write(e.Client.GlobalID);
+
+            foreach (Client client in ClientManager.GetAllClients())
+            {
+                client.SendMessage(new TagSubjectMessage(SPAWN_TAG, DESPAWN_SUBJECT, writer), SendMode.Reliable);
+            }
         }
 
         /// <summary>
