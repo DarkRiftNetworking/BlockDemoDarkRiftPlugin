@@ -30,9 +30,8 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="DarkRift.Common">
-      <HintPath>..\..\DarkRift2.1\DarkRift.Server\bin\Debug\DarkRift.Common.dll</HintPath>
-      <Private>False</Private>
+    <Reference Include="DarkRift">
+      <HintPath>..\..\DarkRift2.1\DarkRift\bin\Debug\DarkRift.dll</HintPath>
     </Reference>
     <Reference Include="DarkRift.Server">
       <HintPath>..\..\DarkRift2.1\DarkRift.Server\bin\Debug\DarkRift.Server.dll</HintPath>

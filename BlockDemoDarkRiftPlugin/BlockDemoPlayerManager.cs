@@ -1,4 +1,4 @@
-﻿using DarkRift.Common;
+﻿using DarkRift;
 using DarkRift.Server;
 using System;
 using System.Collections.Generic;
