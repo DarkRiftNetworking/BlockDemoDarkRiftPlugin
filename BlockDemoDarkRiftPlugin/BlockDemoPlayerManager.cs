@@ -42,7 +42,7 @@ namespace BlockDemoDarkRiftPlugin
         
         /// <summary>
         ///     Indicates that this plugin is thread safe and DarkRift can invoke events from 
-        ///     multiple threads simultaniously.
+        ///     multiple threads simultaneously.
         /// </summary>
         public override bool ThreadSafe => true;
 
@@ -85,8 +85,8 @@ namespace BlockDemoDarkRiftPlugin
                 e.Client.SendMessage(new TagSubjectMessage(SPAWN_TAG, SPAWN_SUBJECT, p), SendMode.Reliable);
             }
 
-            //Subscribe to when this client sends PLAYER messages
-            e.Client.Subscribe(MOVEMENT_TAG, Client_PlayerEvent);
+            //Subscribe to when this client sends messages
+            e.Client.MessageReceived += Client_PlayerEvent;
         }
 
         /// <summary>
@@ -114,30 +114,36 @@ namespace BlockDemoDarkRiftPlugin
         /// <param name="e">The event arguments.</param>
         void Client_PlayerEvent(object sender, MessageReceivedEventArgs e)
         {
-            Client client = (Client)sender;
+            TagSubjectMessage message = e.Message as TagSubjectMessage;
 
-            //Get the player in question
-            Player player;
-            lock (players)
-                player = players[client];
-            
-            //Deserialize the new position
-            Vec3 newPosition = e.Message.Deserialize<Vec3>();
-            Vec3 newRotation = e.Message.Deserialize<Vec3>();
-
-            lock (player)
+            //Check it's a movement message
+            if (message != null && message.Tag == MOVEMENT_TAG)
             {
-                //Update the player
-                player.Position = newPosition;
-                player.Rotation = newRotation;
+                Client client = (Client)sender;
 
-                //Serialize the whole player to the message so that we also include the ID
-                e.Message.Serialize(player);
+                //Get the player in question
+                Player player;
+                lock (players)
+                    player = players[client];
+
+                //Deserialize the new position
+                Vec3 newPosition = message.Deserialize<Vec3>();
+                Vec3 newRotation = message.Deserialize<Vec3>();
+
+                lock (player)
+                {
+                    //Update the player
+                    player.Position = newPosition;
+                    player.Rotation = newRotation;
+
+                    //Serialize the whole player to the message so that we also include the ID
+                    e.Message.Serialize(player);
+                }
+
+                //Send to everyone else
+                IEnumerable<Client> others = ClientManager.GetAllClients().Except(new Client[] { client });
+                e.DistributeTo.UnionWith(others);
             }
-
-            //Send to everyone else
-            IEnumerable<Client> others = ClientManager.GetAllClients().Except(new Client[] { client });
-            e.DistributeTo.UnionWith(others);
         }
 
         private class Player : IDarkRiftSerializable
@@ -146,6 +152,11 @@ namespace BlockDemoDarkRiftPlugin
             public Vec3 Rotation { get; set; }
             public uint ID { get; set; }
 
+            public Player()
+            {
+
+            }
+
             public Player(Vec3 position, Vec3 rotation, uint ID)
             {
                 this.Position = position;
@@ -153,7 +164,7 @@ namespace BlockDemoDarkRiftPlugin
                 this.ID = ID;
             }
 
-            public Player(DeserializeEvent e)
+            public void Deserialize(DeserializeEvent e)
             {
                 this.Position = e.Reader.ReadSerializable<Vec3>();
                 this.Rotation = e.Reader.ReadSerializable<Vec3>();
@@ -174,6 +185,11 @@ namespace BlockDemoDarkRiftPlugin
             public float Y { get; set; }
             public float Z { get; set; }
 
+            public Vec3()
+            {
+
+            }
+
             public Vec3(float x, float y, float z)
             {
                 this.X = x;
@@ -181,7 +197,7 @@ namespace BlockDemoDarkRiftPlugin
                 this.Z = z;
             }
 
-            public Vec3(DeserializeEvent e)
+            public void Deserialize(DeserializeEvent e)
             {
                 this.X = e.Reader.ReadSingle();
                 this.Y = e.Reader.ReadSingle();

@@ -37,7 +37,7 @@ namespace BlockDemoDarkRiftPlugin
 
         /// <summary>
         ///     Indicates that this plugin is thread safe and DarkRift can invoke events from 
-        ///     multiple threads simultaniously.
+        ///     multiple threads simultaneously.
         /// </summary>
         public override bool ThreadSafe => true;
 
@@ -46,7 +46,7 @@ namespace BlockDemoDarkRiftPlugin
         /// </summary>
         /// <remarks>
         ///     The block primitives are structs with custom hash functions and equality testing so
-        ///     a hash set is a very efficient way of storing and retreiving them.
+        ///     a hash set is a very efficient way of storing and retrieving them.
         /// </remarks>
         HashSet<Block> blocks = new HashSet<Block>();
 
@@ -73,7 +73,7 @@ namespace BlockDemoDarkRiftPlugin
         void ClientManager_ClientConnected(object sender, ClientConnectedEventArgs e)
         {
             //When new clients connect we subscribe to when they send data on the WORLD tag.
-            e.Client.Subscribe(WORLD_TAG, Client_WorldEvent);
+            e.Client.MessageReceived += Client_WorldEvent;
 
             //Send back the current world - ideally this would be in a single message but that's beyond this simple
             //demo
@@ -91,61 +91,66 @@ namespace BlockDemoDarkRiftPlugin
         /// <param name="e">The event arguments.</param>
         void Client_WorldEvent(object sender, MessageReceivedEventArgs e)
         {
-            //Extract the client and message
-            Client client = (Client)sender;
-            TagSubjectMessage message = (TagSubjectMessage)e.Message;
+            TagSubjectMessage message = e.Message as TagSubjectMessage;
 
-            //If the client sent too much or too little data then strike them for future reference
-            if (message.GetReader().Length != 12)
+            //Check it's tag
+            if (message != null && message.Tag == WORLD_TAG)
             {
-                client.Strike("Misformed world event received.");
-                return;
+                //Extract the client and message
+                Client client = (Client)sender;
+
+                //If the client sent too much or too little data then strike them for future reference
+                if (message.GetReader().Length != 12)
+                {
+                    client.Strike("Malformed world event received.");
+                    return;
+                }
+
+                //Extract block information
+                Block block = message.Deserialize<Block>();
+
+                //Snap the block to the 1x1x1 grid
+                block.SnapToGrid();
+
+                //Choose what to do with the event
+                switch (message.Subject)
+                {
+                    case PLACE_BLOCK_SUBJECT:
+                        lock (blocks)
+                        {
+                            //Add the new block they placed!
+                            bool success = blocks.Add(block);
+
+                            //If the block was already present return
+                            if (!success)
+                                return;
+                        }
+
+                        break;
+
+                    case DESTROY_BLOCK_SUBJECT:
+                        //Destroy the block they requested!
+                        lock (blocks)
+                        {
+                            //Find block
+                            bool success = blocks.Remove(block);
+
+                            //If the block couldn't be removed ignore the request
+                            if (!success)
+                                return;
+                        }
+
+                        break;
+                }
+
+                //Since we've snapped the block to the grid we need to make sure that the message contains the latest 
+                //block position
+                message.Serialize(block);
+
+                //Finally add all clients to the distribution list so the message is passed onto them and they can show the
+                //placement of the block
+                e.DistributeTo.UnionWith(ClientManager.GetAllClients());
             }
-
-            //Extract block information
-            Block block = message.Deserialize<Block>();
-
-            //Snap the block to the 1x1x1 grid
-            block.SnapToGrid();
-
-            //Choose what to do with the event
-            switch (message.Subject)
-            {
-                case PLACE_BLOCK_SUBJECT:
-                    lock (blocks)
-                    {
-                        //Add the new block they placed!
-                        bool success = blocks.Add(block);
-
-                        //If the block was already present return
-                        if (!success)
-                            return;
-                    }
-
-                    break;
-
-                case DESTROY_BLOCK_SUBJECT:
-                    //Destroy the block they requested!
-                    lock (blocks)
-                    {
-                        //Find block
-                        bool success = blocks.Remove(block);
-
-                        //If the block couldn't be removed ignore the request
-                        if (!success)
-                            return;
-                    }
-
-                    break;
-            }
-
-            //Since we've snapped the block to the grid we need to make sure that the message contains the latest 
-            //block position
-            message.Serialize(block);
-
-            //Finally add all clients to the distribution list so the message is passed onto them and they can show the
-            //placement of the block
-            e.DistributeTo.UnionWith(ClientManager.GetAllClients());
         }
         
         /// <summary>
@@ -164,7 +169,7 @@ namespace BlockDemoDarkRiftPlugin
                 this.Z = z;
             }
 
-            public Block(DeserializeEvent e)
+            public void Deserialize(DeserializeEvent e)
             {
                 this.X = e.Reader.ReadSingle();
                 this.Y = e.Reader.ReadSingle();
