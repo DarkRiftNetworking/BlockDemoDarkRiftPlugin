@@ -80,7 +80,7 @@ namespace BlockDemoDarkRiftPlugin
             lock (blocks)
             {
                 foreach (Block block in blocks)
-                    e.Client.SendMessage(new TagSubjectMessage(WORLD_TAG, 0, block), SendMode.Reliable);
+                    e.Client.SendMessage(new TagSubjectMessage(WORLD_TAG, 0, block), SendMode.FragmentedReliable);
             }
         }
 

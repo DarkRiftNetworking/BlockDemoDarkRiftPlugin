@@ -69,7 +69,7 @@ namespace BlockDemoDarkRiftPlugin
             foreach (Client client in ClientManager.GetAllClients())
             {
                 if (client != e.Client)
-                    client.SendMessage(new TagSubjectMessage(SPAWN_TAG, 0, player), SendMode.Reliable);
+                    client.SendMessage(new TagSubjectMessage(SPAWN_TAG, 0, player), SendMode.FragmentedReliable);
             }
 
             lock (players)
@@ -82,7 +82,7 @@ namespace BlockDemoDarkRiftPlugin
                 lock (players)
                     p = players[client];
 
-                e.Client.SendMessage(new TagSubjectMessage(SPAWN_TAG, SPAWN_SUBJECT, p), SendMode.Reliable);
+                e.Client.SendMessage(new TagSubjectMessage(SPAWN_TAG, SPAWN_SUBJECT, p), SendMode.FragmentedReliable);
             }
 
             //Subscribe to when this client sends messages
@@ -103,7 +103,7 @@ namespace BlockDemoDarkRiftPlugin
 
             foreach (Client client in ClientManager.GetAllClients())
             {
-                client.SendMessage(new TagSubjectMessage(SPAWN_TAG, DESPAWN_SUBJECT, writer), SendMode.Reliable);
+                client.SendMessage(new TagSubjectMessage(SPAWN_TAG, DESPAWN_SUBJECT, writer), SendMode.FragmentedReliable);
             }
         }
 
