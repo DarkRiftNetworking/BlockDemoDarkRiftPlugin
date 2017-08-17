@@ -24,12 +24,7 @@ namespace BlockDemoDarkRiftPlugin
         ///     The subject for destroy block events.
         /// </summary>
         const ushort DESTROY_BLOCK_SUBJECT = 1;
-
-        /// <summary>
-        ///     The name of our plugin.
-        /// </summary>
-        public override string Name => nameof(BlockDemoWorldManager);
-
+        
         /// <summary>
         ///     The version number of the plugin in SemVer form.
         /// </summary>
@@ -80,7 +75,7 @@ namespace BlockDemoDarkRiftPlugin
             lock (blocks)
             {
                 foreach (Block block in blocks)
-                    e.Client.SendMessage(new TagSubjectMessage(WORLD_TAG, 0, block), SendMode.FragmentedReliable);
+                    e.Client.SendMessage(new TagSubjectMessage(WORLD_TAG, 0, block), SendMode.Reliable);
             }
         }
 

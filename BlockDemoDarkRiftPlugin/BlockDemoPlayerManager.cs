@@ -29,12 +29,7 @@ namespace BlockDemoDarkRiftPlugin
         ///     The subject for despawning a player.
         /// </summary>
         const ushort DESPAWN_SUBJECT = 1;
-
-        /// <summary>
-        ///     The name of our plugin.
-        /// </summary>
-        public override string Name => nameof(BlockDemoPlayerManager);
-
+        
         /// <summary>
         ///     The version number of the plugin in SemVer form.
         /// </summary>
@@ -69,7 +64,7 @@ namespace BlockDemoDarkRiftPlugin
             foreach (Client client in ClientManager.GetAllClients())
             {
                 if (client != e.Client)
-                    client.SendMessage(new TagSubjectMessage(SPAWN_TAG, 0, player), SendMode.FragmentedReliable);
+                    client.SendMessage(new TagSubjectMessage(SPAWN_TAG, 0, player), SendMode.Reliable);
             }
 
             lock (players)
@@ -82,7 +77,7 @@ namespace BlockDemoDarkRiftPlugin
                 lock (players)
                     p = players[client];
 
-                e.Client.SendMessage(new TagSubjectMessage(SPAWN_TAG, SPAWN_SUBJECT, p), SendMode.FragmentedReliable);
+                e.Client.SendMessage(new TagSubjectMessage(SPAWN_TAG, SPAWN_SUBJECT, p), SendMode.Reliable);
             }
 
             //Subscribe to when this client sends messages
@@ -103,7 +98,7 @@ namespace BlockDemoDarkRiftPlugin
 
             foreach (Client client in ClientManager.GetAllClients())
             {
-                client.SendMessage(new TagSubjectMessage(SPAWN_TAG, DESPAWN_SUBJECT, writer), SendMode.FragmentedReliable);
+                client.SendMessage(new TagSubjectMessage(SPAWN_TAG, DESPAWN_SUBJECT, writer), SendMode.Reliable);
             }
         }
 
