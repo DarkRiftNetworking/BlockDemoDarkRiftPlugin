@@ -75,7 +75,10 @@ namespace BlockDemoDarkRiftPlugin
             lock (blocks)
             {
                 foreach (Block block in blocks)
-                    e.Client.SendMessage(new TagSubjectMessage(WORLD_TAG, 0, block), SendMode.Reliable);
+                {
+                    using (TagSubjectMessage message = TagSubjectMessage.Create(WORLD_TAG, 0, block))
+                        e.Client.SendMessage(message, SendMode.Reliable);
+                }
             }
         }
 
@@ -86,65 +89,66 @@ namespace BlockDemoDarkRiftPlugin
         /// <param name="e">The event arguments.</param>
         void Client_WorldEvent(object sender, MessageReceivedEventArgs e)
         {
-            TagSubjectMessage message = e.Message as TagSubjectMessage;
-
-            //Check it's tag
-            if (message != null && message.Tag == WORLD_TAG)
+            using (TagSubjectMessage message = e.GetMessage() as TagSubjectMessage)
             {
-                //Extract the client and message
-                Client client = (Client)sender;
-
-                //If the client sent too much or too little data then strike them for future reference
-                if (message.GetReader().Length != 12)
+                //Check it's tag
+                if (message != null && message.Tag == WORLD_TAG)
                 {
-                    client.Strike("Malformed world event received.");
-                    return;
+                    //Extract the client and message
+                    Client client = (Client)sender;
+
+                    //If the client sent too much or too little data then strike them for future reference
+                    if (message.GetReader().Length != 12)
+                    {
+                        client.Strike("Malformed world event received.");
+                        return;
+                    }
+
+                    //Extract block information
+                    Block block = message.Deserialize<Block>();
+
+                    //Snap the block to the 1x1x1 grid
+                    block.SnapToGrid();
+
+                    //Choose what to do with the event
+                    switch (message.Subject)
+                    {
+                        case PLACE_BLOCK_SUBJECT:
+                            lock (blocks)
+                            {
+                                //Add the new block they placed!
+                                bool success = blocks.Add(block);
+
+                                //If the block was already present return
+                                if (!success)
+                                    return;
+                            }
+
+                            break;
+
+                        case DESTROY_BLOCK_SUBJECT:
+                            //Destroy the block they requested!
+                            lock (blocks)
+                            {
+                                //Find block
+                                bool success = blocks.Remove(block);
+
+                                //If the block couldn't be removed ignore the request
+                                if (!success)
+                                    return;
+                            }
+
+                            break;
+                    }
+
+                    //Since we've snapped the block to the grid we need to make sure that the message contains the latest 
+                    //block position
+                    message.Serialize(block);
+
+                    //Finally send all clients the message so they can show the placement of the block
+                    foreach (Client sendTo in ClientManager.GetAllClients())
+                        sendTo.SendMessage(message, SendMode.Reliable);
                 }
-
-                //Extract block information
-                Block block = message.Deserialize<Block>();
-
-                //Snap the block to the 1x1x1 grid
-                block.SnapToGrid();
-
-                //Choose what to do with the event
-                switch (message.Subject)
-                {
-                    case PLACE_BLOCK_SUBJECT:
-                        lock (blocks)
-                        {
-                            //Add the new block they placed!
-                            bool success = blocks.Add(block);
-
-                            //If the block was already present return
-                            if (!success)
-                                return;
-                        }
-
-                        break;
-
-                    case DESTROY_BLOCK_SUBJECT:
-                        //Destroy the block they requested!
-                        lock (blocks)
-                        {
-                            //Find block
-                            bool success = blocks.Remove(block);
-
-                            //If the block couldn't be removed ignore the request
-                            if (!success)
-                                return;
-                        }
-
-                        break;
-                }
-
-                //Since we've snapped the block to the grid we need to make sure that the message contains the latest 
-                //block position
-                message.Serialize(block);
-
-                //Finally add all clients to the distribution list so the message is passed onto them and they can show the
-                //placement of the block
-                e.DistributeTo.UnionWith(ClientManager.GetAllClients());
             }
         }
         

@@ -61,10 +61,13 @@ namespace BlockDemoDarkRiftPlugin
         {
             //Spawn our new player on all other players
             Player player = new Player(new Vec3(0, 0, 0), new Vec3(0, 0, 0), e.Client.GlobalID);
-            foreach (Client client in ClientManager.GetAllClients())
+            using (TagSubjectMessage message = TagSubjectMessage.Create(SPAWN_TAG, SPAWN_SUBJECT, player))
             {
-                if (client != e.Client)
-                    client.SendMessage(new TagSubjectMessage(SPAWN_TAG, 0, player), SendMode.Reliable);
+                foreach (Client client in ClientManager.GetAllClients())
+                {
+                    if (client != e.Client)
+                        client.SendMessage(message, SendMode.Reliable);
+                }
             }
 
             lock (players)
@@ -77,7 +80,8 @@ namespace BlockDemoDarkRiftPlugin
                 lock (players)
                     p = players[client];
 
-                e.Client.SendMessage(new TagSubjectMessage(SPAWN_TAG, SPAWN_SUBJECT, p), SendMode.Reliable);
+                using (TagSubjectMessage message = TagSubjectMessage.Create(SPAWN_TAG, SPAWN_SUBJECT, p))
+                    e.Client.SendMessage(message, SendMode.Reliable);
             }
 
             //Subscribe to when this client sends messages
@@ -93,12 +97,15 @@ namespace BlockDemoDarkRiftPlugin
         {
             players.Remove(e.Client);
 
-            DarkRiftWriter writer = new DarkRiftWriter();
-            writer.Write(e.Client.GlobalID);
-
-            foreach (Client client in ClientManager.GetAllClients())
+            using (DarkRiftWriter writer = DarkRiftWriter.Create())
             {
-                client.SendMessage(new TagSubjectMessage(SPAWN_TAG, DESPAWN_SUBJECT, writer), SendMode.Reliable);
+                writer.Write(e.Client.GlobalID);
+
+                using (TagSubjectMessage message = TagSubjectMessage.Create(SPAWN_TAG, DESPAWN_SUBJECT, writer))
+                {
+                    foreach (Client client in ClientManager.GetAllClients())
+                        client.SendMessage(message, SendMode.Reliable);
+                }
             }
         }
 
@@ -109,35 +116,36 @@ namespace BlockDemoDarkRiftPlugin
         /// <param name="e">The event arguments.</param>
         void Client_PlayerEvent(object sender, MessageReceivedEventArgs e)
         {
-            TagSubjectMessage message = e.Message as TagSubjectMessage;
-
-            //Check it's a movement message
-            if (message != null && message.Tag == MOVEMENT_TAG)
+            using (TagSubjectMessage message = e.GetMessage() as TagSubjectMessage)
             {
-                Client client = (Client)sender;
-
-                //Get the player in question
-                Player player;
-                lock (players)
-                    player = players[client];
-
-                //Deserialize the new position
-                Vec3 newPosition = message.Deserialize<Vec3>();
-                Vec3 newRotation = message.Deserialize<Vec3>();
-
-                lock (player)
+                //Check it's a movement message
+                if (message != null && message.Tag == MOVEMENT_TAG)
                 {
-                    //Update the player
-                    player.Position = newPosition;
-                    player.Rotation = newRotation;
+                    Client client = (Client)sender;
 
-                    //Serialize the whole player to the message so that we also include the ID
-                    e.Message.Serialize(player);
+                    //Get the player in question
+                    Player player;
+                    lock (players)
+                        player = players[client];
+
+                    //Deserialize the new position
+                    Vec3 newPosition = message.Deserialize<Vec3>();
+                    Vec3 newRotation = message.Deserialize<Vec3>();
+
+                    lock (player)
+                    {
+                        //Update the player
+                        player.Position = newPosition;
+                        player.Rotation = newRotation;
+
+                        //Serialize the whole player to the message so that we also include the ID
+                        message.Serialize(player);
+                    }
+
+                    //Send to everyone else
+                    foreach (Client sendTo in ClientManager.GetAllClients().Except(new Client[] { client }))
+                        sendTo.SendMessage(message, SendMode.Reliable);
                 }
-
-                //Send to everyone else
-                IEnumerable<Client> others = ClientManager.GetAllClients().Except(new Client[] { client });
-                e.DistributeTo.UnionWith(others);
             }
         }
 
