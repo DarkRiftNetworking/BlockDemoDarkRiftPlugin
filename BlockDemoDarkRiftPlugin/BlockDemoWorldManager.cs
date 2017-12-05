@@ -11,21 +11,6 @@ namespace BlockDemoDarkRiftPlugin
     public class BlockDemoWorldManager : Plugin
     {
         /// <summary>
-        ///     The tag that all world data will be received on.
-        /// </summary>
-        const byte WORLD_TAG = 2;
-
-        /// <summary>
-        ///     The subject for place block events.
-        /// </summary>
-        const ushort PLACE_BLOCK_SUBJECT = 0;
-
-        /// <summary>
-        ///     The subject for destroy block events.
-        /// </summary>
-        const ushort DESTROY_BLOCK_SUBJECT = 1;
-        
-        /// <summary>
         ///     The version number of the plugin in SemVer form.
         /// </summary>
         public override Version Version => new Version(1, 0, 0);
@@ -76,7 +61,7 @@ namespace BlockDemoDarkRiftPlugin
             {
                 foreach (Block block in blocks)
                 {
-                    using (TagSubjectMessage message = TagSubjectMessage.Create(WORLD_TAG, 0, block))
+                    using (Message message = Message.Create(BlockTags.PlaceBlock, block))
                         e.Client.SendMessage(message, SendMode.Reliable);
                 }
             }
@@ -89,10 +74,10 @@ namespace BlockDemoDarkRiftPlugin
         /// <param name="e">The event arguments.</param>
         void Client_WorldEvent(object sender, MessageReceivedEventArgs e)
         {
-            using (TagSubjectMessage message = e.GetMessage() as TagSubjectMessage)
+            using (Message message = e.GetMessage() as Message)
             {
                 //Check it's tag
-                if (message != null && message.Tag == WORLD_TAG)
+                if (message.Tag == BlockTags.PlaceBlock || message.Tag == BlockTags.DestroyBlock)
                 {
                     //Extract the client and message
                     Client client = (Client)sender;
@@ -111,34 +96,30 @@ namespace BlockDemoDarkRiftPlugin
                     block.SnapToGrid();
 
                     //Choose what to do with the event
-                    switch (message.Subject)
+                    if (message.Tag == BlockTags.PlaceBlock)
                     {
-                        case PLACE_BLOCK_SUBJECT:
-                            lock (blocks)
-                            {
-                                //Add the new block they placed!
-                                bool success = blocks.Add(block);
+                        lock (blocks)
+                        {
+                            //Add the new block they placed!
+                            bool success = blocks.Add(block);
 
-                                //If the block was already present return
-                                if (!success)
-                                    return;
-                            }
+                            //If the block was already present return
+                            if (!success)
+                                return;
+                        }
+                    }
+                    else
+                    {
+                        //Destroy the block they requested!
+                        lock (blocks)
+                        {
+                            //Find block
+                            bool success = blocks.Remove(block);
 
-                            break;
-
-                        case DESTROY_BLOCK_SUBJECT:
-                            //Destroy the block they requested!
-                            lock (blocks)
-                            {
-                                //Find block
-                                bool success = blocks.Remove(block);
-
-                                //If the block couldn't be removed ignore the request
-                                if (!success)
-                                    return;
-                            }
-
-                            break;
+                            //If the block couldn't be removed ignore the request
+                            if (!success)
+                                return;
+                        }
                     }
 
                     //Since we've snapped the block to the grid we need to make sure that the message contains the latest 

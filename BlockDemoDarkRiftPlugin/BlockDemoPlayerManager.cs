@@ -11,26 +11,6 @@ namespace BlockDemoDarkRiftPlugin
     class BlockDemoPlayerManager : Plugin
     {
         /// <summary>
-        ///     The tag that all spawn data will be sent on.
-        /// </summary>
-        const int SPAWN_TAG = 0;
-
-        /// <summary>
-        ///     The tag that all player data will be received on.
-        /// </summary>
-        const int MOVEMENT_TAG = 1;
-
-        /// <summary>
-        ///     The subject for spawning a new player.
-        /// </summary>
-        const ushort SPAWN_SUBJECT = 0;
-
-        /// <summary>
-        ///     The subject for despawning a player.
-        /// </summary>
-        const ushort DESPAWN_SUBJECT = 1;
-        
-        /// <summary>
         ///     The version number of the plugin in SemVer form.
         /// </summary>
         public override Version Version => new Version(1, 0, 0);
@@ -61,7 +41,7 @@ namespace BlockDemoDarkRiftPlugin
         {
             //Spawn our new player on all other players
             Player player = new Player(new Vec3(0, 0, 0), new Vec3(0, 0, 0), e.Client.GlobalID);
-            using (TagSubjectMessage message = TagSubjectMessage.Create(SPAWN_TAG, SPAWN_SUBJECT, player))
+            using (Message message = Message.Create(BlockTags.SpawnPlayer, player))
             {
                 foreach (Client client in ClientManager.GetAllClients())
                 {
@@ -80,7 +60,7 @@ namespace BlockDemoDarkRiftPlugin
                 lock (players)
                     p = players[client];
 
-                using (TagSubjectMessage message = TagSubjectMessage.Create(SPAWN_TAG, SPAWN_SUBJECT, p))
+                using (Message message = Message.Create(BlockTags.SpawnPlayer, p))
                     e.Client.SendMessage(message, SendMode.Reliable);
             }
 
@@ -101,7 +81,7 @@ namespace BlockDemoDarkRiftPlugin
             {
                 writer.Write(e.Client.GlobalID);
 
-                using (TagSubjectMessage message = TagSubjectMessage.Create(SPAWN_TAG, DESPAWN_SUBJECT, writer))
+                using (Message message = Message.Create(BlockTags.DespawnSplayer, writer))
                 {
                     foreach (Client client in ClientManager.GetAllClients())
                         client.SendMessage(message, SendMode.Reliable);
@@ -116,10 +96,10 @@ namespace BlockDemoDarkRiftPlugin
         /// <param name="e">The event arguments.</param>
         void Client_PlayerEvent(object sender, MessageReceivedEventArgs e)
         {
-            using (TagSubjectMessage message = e.GetMessage() as TagSubjectMessage)
+            using (Message message = e.GetMessage() as Message)
             {
                 //Check it's a movement message
-                if (message != null && message.Tag == MOVEMENT_TAG)
+                if (message != null && message.Tag == BlockTags.Movement)
                 {
                     Client client = (Client)sender;
 
