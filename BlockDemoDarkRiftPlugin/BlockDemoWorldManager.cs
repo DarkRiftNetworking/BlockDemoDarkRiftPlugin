@@ -8,6 +8,9 @@ using System.Threading.Tasks;
 
 namespace BlockDemoDarkRiftPlugin
 {
+    /// <summary>
+    ///     Manages the world built in the game.
+    /// </summary>
     public class BlockDemoWorldManager : Plugin
     {
         /// <summary>

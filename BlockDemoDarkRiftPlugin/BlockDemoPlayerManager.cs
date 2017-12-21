@@ -8,6 +8,9 @@ using System.Threading.Tasks;
 
 namespace BlockDemoDarkRiftPlugin
 {
+    /// <summary>
+    ///     Manages the players in the server.
+    /// </summary>
     class BlockDemoPlayerManager : Plugin
     {
         /// <summary>
@@ -21,6 +24,9 @@ namespace BlockDemoDarkRiftPlugin
         /// </summary>
         public override bool ThreadSafe => true;
 
+        /// <summary>
+        ///     The player in the server.
+        /// </summary>
         Dictionary<IClient, Player> players = new Dictionary<IClient, Player>();
 
         public BlockDemoPlayerManager(PluginLoadData pluginLoadData) : base(pluginLoadData)
@@ -127,6 +133,9 @@ namespace BlockDemoDarkRiftPlugin
             }
         }
 
+        /// <summary>
+        ///     Holds serializable data about a player.
+        /// </summary>
         private class Player : IDarkRiftSerializable
         {
             public Vec3 Position { get; set; }
@@ -160,6 +169,9 @@ namespace BlockDemoDarkRiftPlugin
             }
         }
 
+        /// <summary>
+        ///     A primative 3 axis vector.
+        /// </summary>
         private class Vec3 : IDarkRiftSerializable
         {
             public float X { get; set; }

@@ -4,6 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+/// <summary>
+///     The tags for messages between the server and the client.
+/// </summary>
 static class BlockTags
 {
     public static readonly ushort SpawnPlayer = 0;
