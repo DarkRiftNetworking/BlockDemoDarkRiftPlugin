@@ -21,7 +21,7 @@ namespace BlockDemoDarkRiftPlugin
         /// </summary>
         public override bool ThreadSafe => true;
 
-        Dictionary<Client, Player> players = new Dictionary<Client, Player>();
+        Dictionary<IClient, Player> players = new Dictionary<IClient, Player>();
 
         public BlockDemoPlayerManager(PluginLoadData pluginLoadData) : base(pluginLoadData)
         {
@@ -40,10 +40,10 @@ namespace BlockDemoDarkRiftPlugin
         void ClientManager_ClientConnected(object sender, ClientConnectedEventArgs e)
         {
             //Spawn our new player on all other players
-            Player player = new Player(new Vec3(0, 0, 0), new Vec3(0, 0, 0), e.Client.GlobalID);
+            Player player = new Player(new Vec3(0, 0, 0), new Vec3(0, 0, 0), e.Client.ID);
             using (Message message = Message.Create(BlockTags.SpawnPlayer, player))
             {
-                foreach (Client client in ClientManager.GetAllClients())
+                foreach (IClient client in ClientManager.GetAllClients())
                 {
                     if (client != e.Client)
                         client.SendMessage(message, SendMode.Reliable);
@@ -54,7 +54,7 @@ namespace BlockDemoDarkRiftPlugin
                 players.Add(e.Client, player);
 
             //Spawn all other players on our new player
-            foreach (Client client in ClientManager.GetAllClients())
+            foreach (IClient client in ClientManager.GetAllClients())
             {
                 Player p;
                 lock (players)
@@ -79,11 +79,11 @@ namespace BlockDemoDarkRiftPlugin
 
             using (DarkRiftWriter writer = DarkRiftWriter.Create())
             {
-                writer.Write(e.Client.GlobalID);
+                writer.Write(e.Client.ID);
 
                 using (Message message = Message.Create(BlockTags.DespawnSplayer, writer))
                 {
-                    foreach (Client client in ClientManager.GetAllClients())
+                    foreach (IClient client in ClientManager.GetAllClients())
                         client.SendMessage(message, SendMode.Reliable);
                 }
             }
@@ -101,12 +101,10 @@ namespace BlockDemoDarkRiftPlugin
                 //Check it's a movement message
                 if (message != null && message.Tag == BlockTags.Movement)
                 {
-                    Client client = (Client)sender;
-
                     //Get the player in question
                     Player player;
                     lock (players)
-                        player = players[client];
+                        player = players[e.Client];
 
                     //Deserialize the new position
                     Vec3 newPosition = message.Deserialize<Vec3>();
@@ -123,7 +121,7 @@ namespace BlockDemoDarkRiftPlugin
                     }
 
                     //Send to everyone else
-                    foreach (Client sendTo in ClientManager.GetAllClients().Except(new Client[] { client }))
+                    foreach (IClient sendTo in ClientManager.GetAllClients().Except(new IClient[] { e.Client }))
                         sendTo.SendMessage(message, SendMode.Reliable);
                 }
             }

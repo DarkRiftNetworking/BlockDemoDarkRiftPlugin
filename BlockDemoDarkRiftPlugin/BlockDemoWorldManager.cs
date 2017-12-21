@@ -79,13 +79,11 @@ namespace BlockDemoDarkRiftPlugin
                 //Check it's tag
                 if (message.Tag == BlockTags.PlaceBlock || message.Tag == BlockTags.DestroyBlock)
                 {
-                    //Extract the client and message
-                    Client client = (Client)sender;
 
                     //If the client sent too much or too little data then strike them for future reference
                     if (message.GetReader().Length != 12)
                     {
-                        client.Strike("Malformed world event received.");
+                        e.Client.Strike("Malformed world event received.");
                         return;
                     }
 
@@ -127,7 +125,7 @@ namespace BlockDemoDarkRiftPlugin
                     message.Serialize(block);
 
                     //Finally send all clients the message so they can show the placement of the block
-                    foreach (Client sendTo in ClientManager.GetAllClients())
+                    foreach (IClient sendTo in ClientManager.GetAllClients())
                         sendTo.SendMessage(message, SendMode.Reliable);
                 }
             }
