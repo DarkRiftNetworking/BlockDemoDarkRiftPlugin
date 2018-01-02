@@ -79,7 +79,7 @@ namespace BlockDemoDarkRiftPlugin
         {
             using (Message message = e.GetMessage() as Message)
             {
-                //Check it's tag
+                //Check its tag
                 if (message.Tag == BlockTags.PlaceBlock || message.Tag == BlockTags.DestroyBlock)
                 {
 
