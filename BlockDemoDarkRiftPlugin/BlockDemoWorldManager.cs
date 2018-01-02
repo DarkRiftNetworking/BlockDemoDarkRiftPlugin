@@ -86,7 +86,7 @@ namespace BlockDemoDarkRiftPlugin
                     //If the client sent too much or too little data then strike them for future reference
                     if (message.GetReader().Length != 12)
                     {
-                        e.Client.Strike("Malformed world event received.");
+                        WriteEvent("Malformed world event received.", LogType.Error);
                         return;
                     }
 
