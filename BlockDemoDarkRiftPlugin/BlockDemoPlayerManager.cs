@@ -140,14 +140,14 @@ namespace BlockDemoDarkRiftPlugin
         {
             public Vec3 Position { get; set; }
             public Vec3 Rotation { get; set; }
-            public uint ID { get; set; }
+            public ushort ID { get; set; }
 
             public Player()
             {
 
             }
 
-            public Player(Vec3 position, Vec3 rotation, uint ID)
+            public Player(Vec3 position, Vec3 rotation, ushort ID)
             {
                 this.Position = position;
                 this.Rotation = rotation;
@@ -158,7 +158,7 @@ namespace BlockDemoDarkRiftPlugin
             {
                 this.Position = e.Reader.ReadSerializable<Vec3>();
                 this.Rotation = e.Reader.ReadSerializable<Vec3>();
-                this.ID = e.Reader.ReadUInt32();
+                this.ID = e.Reader.ReadUInt16();
             }
 
             public void Serialize(SerializeEvent e)
