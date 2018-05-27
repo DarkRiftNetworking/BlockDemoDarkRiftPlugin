@@ -113,22 +113,25 @@ namespace BlockDemoDarkRiftPlugin
                         player = players[e.Client];
 
                     //Deserialize the new position
-                    Vec3 newPosition = message.Deserialize<Vec3>();
-                    Vec3 newRotation = message.Deserialize<Vec3>();
-
-                    lock (player)
+                    using (DarkRiftReader reader = message.GetReader())
                     {
-                        //Update the player
-                        player.Position = newPosition;
-                        player.Rotation = newRotation;
+                        Vec3 newPosition = reader.ReadSerializable<Vec3>();
+                        Vec3 newRotation = reader.ReadSerializable<Vec3>();
 
-                        //Serialize the whole player to the message so that we also include the ID
-                        message.Serialize(player);
+                        lock (player)
+                        {
+                            //Update the player
+                            player.Position = newPosition;
+                            player.Rotation = newRotation;
+
+                            //Serialize the whole player to the message so that we also include the ID
+                            message.Serialize(player);
+                        }
+
+                        //Send to everyone else
+                        foreach (IClient sendTo in ClientManager.GetAllClients().Except(new IClient[] { e.Client }))
+                            sendTo.SendMessage(message, SendMode.Reliable);
                     }
-
-                    //Send to everyone else
-                    foreach (IClient sendTo in ClientManager.GetAllClients().Except(new IClient[] { e.Client }))
-                        sendTo.SendMessage(message, SendMode.Reliable);
                 }
             }
         }
